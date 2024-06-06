@@ -16,6 +16,10 @@ const config = {
     endpoint: "https://sb-openapi.zalopay.vn/v2/create"
 };
 
+app.get("/",(req,res) =>{
+    res.send("<h1>Hello</h1>")
+})
+
 app.post("/payment",async(req,res) =>{
     const price = req.body.item.price;
     const content = req.body.item.content;
