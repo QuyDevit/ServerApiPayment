@@ -118,3 +118,4 @@ app.post('/order-status/:app_trans_id',async(req,res) =>{
 app.listen(3000,() =>{
     console.log('Listening App http://localhost:3000/')
 })
+module.exports = app;
