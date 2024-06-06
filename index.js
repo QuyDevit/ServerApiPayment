@@ -33,7 +33,7 @@ app.post("/payment",async(req,res) =>{
         amount: price,
         description: `Discord - Thanh toán ${content} Đơn hàng #${transID}`,
         bank_code: "",
-        callback_url:'https://c703-2402-800-6311-101d-1042-c50b-2c7f-d20b.ngrok-free.app/callback'
+        callback_url:'https://server-api-payment-zalo.vercel.app/callback'
     };
 
     // appid|app_trans_id|appuser|amount|apptime|embeddata|item
