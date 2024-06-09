@@ -6,6 +6,7 @@ const axios = require('axios').default; // npm install axios
 const CryptoJS = require('crypto-js'); // npm install crypto-js
 const moment = require('moment'); // npm install moment
 const qs = require('qs')
+const paypal = require('paypal-rest-sdk');
 
 app.use(express.json());
 app.use(express.urlencoded({extended:true}))
@@ -42,7 +43,7 @@ app.post("/payment",async(req,res) =>{
         amount: price,
         description: `Discord - Thanh toán ${content} Đơn hàng #${transID}`,
         bank_code: "",
-        callback_url:'https://server-api-payment-zalo.vercel.app/callback'
+        callback_url:'https://server-api-payment.vercel.app/callback'
     };
 
     // appid|app_trans_id|appuser|amount|apptime|embeddata|item
@@ -128,9 +129,9 @@ app.post("/payment-momo",async(req,res)=>{
     const price = req.body.price;
     const content = req.body.content;
 
-    var orderInfo = content;
+    var orderInfo = 'Discord - Thanh toán '+content;
     var redirectUrl = 'https://momo.vn/';
-    var ipnUrl = 'https://server-api-payment-zalo.vercel.app/callback-momo';
+    var ipnUrl = 'https://server-api-payment.vercel.app/callback-momo';
     var requestType = "payWithMethod";
     var amount = price;
     var orderId = partnerCode + new Date().getTime();
@@ -236,6 +237,91 @@ app.post("/transaction-status-momo",async(req,res)=>{
         });
     }
 })
+
+
+//paypal
+paypal.configure({
+  'mode': 'sandbox', // Use 'sandbox' for testing and 'live' for production
+  'client_id': 'AWznF6Vd6zwpnRJBVC5hdxdOR6A3vIKHbrvyo4MJQrqDU9M2nTVYoo7ns6_2ugR4Th43n2p7oiGlgMpl',
+  'client_secret': 'EJ5yWHoH74AexM-_0V2fWHRjF_14mkYviA6EpYPPkpxA2xhSVtxUf3-SgxEZJA54sDf_3iisOYoJ025j'
+});
+
+// Route to create a payment
+app.post('/pay', (req, res) => {
+    const price = parseFloat(req.body.price).toFixed(2);
+    const content = req.body.content;
+  const create_payment_json = {
+    "intent": "sale",
+    "payer": {
+      "payment_method": "paypal"
+    },
+    "redirect_urls": {
+      "return_url": `https://server-api-payment.vercel.app/success?price=${price}`,
+      "cancel_url": "https://server-api-payment.vercel.app/cancel"
+    },
+    "transactions": [{
+      "item_list": {
+        "items": [{
+          "name": "item",
+          "sku": "item",
+          "price": price,
+          "currency": "USD",
+          "quantity": 1
+        }]
+      },
+      "amount": {
+        "currency": "USD",
+        "total": price
+      },
+      "description": "Discord - Thanh toán "+ content
+    }]
+  };
+
+   console.log('Create Payment JSON:', create_payment_json);
+  paypal.payment.create(create_payment_json, function (error, payment) {
+    if (error) {
+      console.error(error);
+      res.status(500).send(error);
+    } else {
+      for (let i = 0; i < payment.links.length; i++) {
+        if (payment.links[i].rel === 'approval_url') {
+          res.json({ approval_url: payment.links[i].href });
+        }
+      }
+    }
+  });
+});
+
+// Route to handle return from PayPal after approval
+app.get('/success', (req, res) => {
+  const payerId = req.query.PayerID;
+  const paymentId = req.query.paymentId;
+
+  const execute_payment_json = {
+    "payer_id": payerId,
+    "transactions": [{
+      "amount": {
+        "currency": "USD",
+        "total": parseFloat(req.query.price).toFixed(2)
+      }
+    }]
+  };
+
+  paypal.payment.execute(paymentId, execute_payment_json, function (error, payment) {
+    if (error) {
+      console.error(error.response);
+      res.status(500).send(error);
+    } else {
+      res.send('Success');
+    }
+  });
+});
+
+// Route to handle cancellation
+app.get('/cancel', (req, res) => {
+  res.send('Cancelled');
+});
+
 
 app.listen(3000,() =>{
     console.log('Listening App http://localhost:3000/')
